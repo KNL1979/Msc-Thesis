@@ -215,6 +215,42 @@ with open(chunks_file_path, 'w', encoding='utf-8') as file:
 
 print("All Dutch chunks saved successfully.")
 
+#%% SPLITTING INTO EVALUATION AND TRAININGSET 
+from sklearn.model_selection import train_test_split
+
+# Read the contents of the file
+with open('dutch_chunks.txt', 'r', encoding='utf-8') as file:
+    lines = file.readlines()
+
+# Combine the lines into chunks of text separated by empty lines
+chunks = []
+chunk = ''
+for line in lines:
+    if line.strip():  # If the line is not empty
+        chunk += line
+    else:  # If the line is empty, start a new chunk
+        chunks.append(chunk.strip())  # Remove leading/trailing whitespace
+        chunk = ''
+
+# Append the last chunk
+if chunk:
+    chunks.append(chunk.strip())
+
+# Split the data into training and evaluation sets
+train_chunks, eval_chunks = train_test_split(chunks, test_size=40, random_state=42)
+
+# Write the evaluation set to a file
+with open('Dutch_evaluation_set.txt', 'w', encoding='utf-8') as eval_file:
+    eval_file.write('\n\n'.join(eval_chunks))
+
+# Write the training set to a file
+with open('Dutch_training_set.txt', 'w', encoding='utf-8') as train_file:
+    train_file.write('\n\n'.join(train_chunks))
+
+print("Evaluation set and training set are created successfully!")
+
+
+
 #%% After manually annotation, annotate the same chunks using the model and look for discrepancy to assess
 # the need for fine-tuning (or not)
 
