@@ -1,17 +1,5 @@
 # -*- coding: utf-8 -*-
 """
-Created on Sat Apr 27 15:40:13 2024
-
-@author: kimlu
-"""
-
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Apr 24 21:24:57 2024
-
-@author: kimlu
-"""# -*- coding: utf-8 -*-
-"""
 Created on Sun Mar 10 22:07:42 2024
 
 @author: kimlu
@@ -49,7 +37,7 @@ color_map = {
 ### Load data ###
 #################
 df = pd.read_csv('data/cleaned_df.csv')
-df_geo = pd.read_csv('data/geo_df.csv')
+df_geo = pd.read_csv('data/df_geo.csv')
 df_sentiment = pd.read_csv('data/df_sentiment.csv')
 
 # Aggregate the geospatial data by location name and calculate the count of occurrences
@@ -133,20 +121,6 @@ header_font_size = '65px'
 header = dbc.Row(
     dbc.Col(html.H1('Memorise: Pipeline for processing and visualizing letters', className='text-center mt-5 mb-3', style={'font-weight': 'bold', 'font-family': header_font_family, 'font-size': header_font_size})),
     className='mt-3'
-)
-
-
-### DROPDOWN ###
-letter_dropdown = dbc.Col(
-    [
-        html.P("Select letter", style={'margin-bottom': '0.5rem'}),  # Text above the dropdown
-        dcc.Dropdown(
-            id='letter-dropdown',
-            options=[{'label': str(letter), 'value': letter} for letter in df_sentiment['letter'].unique()],
-            #value='1',  # Set default value to '1'
-            style={'width': '100%', 'color': 'black'} 
-        )
-    ],
 )
 
 ### RESET BUTTON ###
@@ -292,25 +266,55 @@ app = Dash(__name__, external_stylesheets=[theme_name])
 #################################
 ### Define callback functions ###
 #################################
+# Define callback functions
 @app.callback(
     [Output('text-window', 'children'),
      Output('bubble-map', 'figure')],
-    [Input('letter-dropdown', 'value'),
+    [Input('bar-chart', 'clickData'),
      Input('reset-button', 'n_clicks')],
     [State('displacy-store', 'data')]
 )
-def update_text_window_and_map(selected_letter, n_clicks, data):
+def update_text_window_and_map(clicked_bar, n_clicks, data):
     # Determine which input triggered the callback
     ctx = callback_context
     triggered_input = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else None
 
-    if triggered_input == 'letter-dropdown':
+    if triggered_input == 'reset-button':
+        # Update the figure of the bubble map to include all entities
+        fig_map = px.scatter_mapbox(
+            bubble_data,
+            lat='latitude',
+            lon='longitude',
+            size='count',
+            hover_name='location_name',
+            hover_data={'latitude': False, 'longitude': False, 'count': True},
+            title='Entity Occurrence Bubble Map',
+            mapbox_style="carto-positron",
+            opacity=.6,
+            center=dict(lat=52.3676, lon=5.5),
+            zoom=7,
+            size_max=75
+        )
+
+        # Set background color of the map to transparent
+        fig_map.update_layout(
+            plot_bgcolor='rgba(0, 0, 0, 0)',
+            paper_bgcolor='rgba(0, 0, 0, 0)',
+            margin=dict(l=0, r=0, t=0, b=0),
+        )
+
+        return no_update, fig_map
+
+    elif clicked_bar is not None:
+        # Get the selected letter from the clickData
+        selected_letter = clicked_bar['points'][0]['x']
+
         # Filter df_geo DataFrame based on selected letter
         filtered_geo = df_geo.loc[df_geo['letter'] == selected_letter]
 
         # Update map layout to highlight locations based on location_name
         highlighted_locations = bubble_data[bubble_data['location_name'].isin(filtered_geo['location_name'])].copy()
-        
+
         # Update the count column based on the number of occurrences of each location within the selected letter
         highlighted_locations['count'] = highlighted_locations.groupby('location_name')['count'].transform('size')
 
@@ -335,14 +339,14 @@ def update_text_window_and_map(selected_letter, n_clicks, data):
             paper_bgcolor='rgba(0, 0, 0, 0)',
             margin=dict(l=0, r=0, t=0, b=0),
         )
-        
+
         # Update text window based on selected letter
         if not data:
             text_window_content = "Displacy data not available."
         else:
             # Convert selected_letter to an integer
             selected_letter_index = int(selected_letter) - 1
-            
+
             # Check if selected_letter_index is within bounds
             if 0 <= selected_letter_index < len(data):
                 # Load markup from displacy_data
@@ -351,43 +355,30 @@ def update_text_window_and_map(selected_letter, n_clicks, data):
                 markup = render_displacy_markup(doc)
             else:
                 markup = ''
-            
-            text_window_content = html.Div(markup, style={'border': '1px solid black', 'border-radius': '5px', 'height': '1000px', 'width': '75%', 'font-size': '35px', 'box-shadow': '0 0 10px rgba(0, 0, 0, 0.3)', 'padding': '25px', 'overflow-y': 'scroll'})
+
+            text_window_content = html.Div(markup,
+                                           style={'border': '1px solid black', 'border-radius': '5px', 'height': '1000px',
+                                                  'width': '75%', 'font-size': '35px',
+                                                  'box-shadow': '0 0 10px rgba(0, 0, 0, 0.3)', 'padding': '25px',
+                                                  'overflow-y': 'scroll'})
 
         return text_window_content, fig_map
-
-    elif triggered_input == 'reset-button':
-        # Update the figure of the bubble map to include all entities
-        fig_map = px.scatter_mapbox(
-            bubble_data,
-            lat='latitude',
-            lon='longitude',
-            size='count',
-            hover_name='location_name',
-            hover_data={'latitude': False, 'longitude': False, 'count': True},
-            title='Entity Occurrence Bubble Map',
-            mapbox_style="carto-positron",
-            opacity=.6,
-            center=dict(lat=52.3676, lon=5.5),
-            zoom=7,
-            size_max=75
-        )
-
-        # Set background color of the map to transparent
-        fig_map.update_layout(
-            plot_bgcolor='rgba(0, 0, 0, 0)',
-            paper_bgcolor='rgba(0, 0, 0, 0)',
-            margin=dict(l=0, r=0, t=0, b=0),
-        )
-
-        # Reset the dropdown value to the first letter
-        selected_letter = df_sentiment['letter'].iloc[0]
-
-        return no_update, fig_map
 
     else:
         # No input triggered the callback, return no update for the text window and map
         return no_update, no_update
+
+# Define callback function to update selected letter based on bar click
+@app.callback(
+    Output('letter-dropdown', 'value'),
+    [Input('bar-chart', 'clickData')]
+)
+def update_selected_letter(clicked_bar):
+    if clicked_bar is not None:
+        selected_letter = clicked_bar['points'][0]['x']
+        return selected_letter
+    else:
+        return None
 
 #########################
 ### Define app layout ###
@@ -413,8 +404,6 @@ app.layout = dbc.Container(
         dbc.Row([
             dbc.Col(
                 [
-                    # Dropdown
-                    letter_dropdown,
                     # Reset button
                     reset_button
                 ],
