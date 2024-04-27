@@ -6,6 +6,13 @@ Created on Thu Mar 21 22:08:51 2024
 """
 
 #%%
+import os
+
+# Set the path to the root directory (speciale/code)
+root_directory = os.path.dirname(os.path.abspath(__file__))
+os.chdir(root_directory)
+
+#%%
 #######################
 ### EXTRACT LETTERS ###
 #######################
@@ -15,7 +22,7 @@ import re
 ### Extracting/separating letters in word doc ###
 
 # Read the contents of the file
-file_path = 'code/data/Westerbork_letters/Letters from Camp Westerbork''.txt'
+file_path = 'data/Westerbork_letters/Letters from Camp Westerbork''.txt'
 with open(file_path, 'r', encoding='utf-8') as file:
     document_text = file.read()
 
@@ -115,7 +122,7 @@ df['text'] = df.apply(lambda row: remove_date_from_text(row['text'], row['date']
 #%% ### Save to csv ###
 
 # Save the DataFrame as a CSV file
-df.to_csv('cleaned_df.csv', index=False)
+df.to_csv('data/cleaned_df.csv', index=False)
 
 #%% ### Create dataset of the last half of the worddoc ### 
     ### to be used for randomly extracting sentences   ### 
@@ -134,8 +141,8 @@ for letter in letters:
 
 annotation_corpus_text = '\n'.join(annotation_corpus)
 
-# Save the annotation corpus in the same directory as the script
-annotation_corpus_file_path = 'Raw_annotation_Corpus.txt'
+# Save the annotation corpus
+annotation_corpus_file_path = 'data/Raw_annotation_Corpus.txt'
 with open(annotation_corpus_file_path, 'w', encoding='utf-8') as file:
     file.write(annotation_corpus_text)
 
@@ -143,14 +150,14 @@ print("Raw annotation corpus extracted and saved successfully.")
 
 #%% 
 ######################################
-### CHUNKING/MAKING ANNOTATION SET ###
+### CHUNKING/MAKING ANNOTATION SET ### FOR FINETUNING - MIGHT NOT MAKE IT... (EVT USE NIOD?)
 ###################################### 
 import re
 from tqdm import tqdm
 from langdetect import detect
 
 # Load the text data or use your existing annotation corpus
-with open('Raw_annotation_Corpus.txt', 'r', encoding='utf-8') as file:
+with open('data/Raw_annotation_Corpus.txt', 'r', encoding='utf-8') as file:
     annotation_corpus_text = file.read()
 
 # Define the exclude pattern
@@ -204,8 +211,7 @@ for chunk in tqdm(chunks, desc="Excluding German Sentences"):
         pass
 
 # Save the unique Dutch chunks
-chunks_file_path = 'Dutch_chunks.txt'
-with open(chunks_file_path, 'w', encoding='utf-8') as file:
+with open('data/dutch_chunks.txt', 'w', encoding='utf-8') as file:
     for chunk in dutch_chunks:
         file.write(chunk + '\n\n')
 
@@ -217,7 +223,7 @@ from sklearn.model_selection import train_test_split
 import pandas as pd
 
 # Read the contents of the file
-with open('dutch_chunks.txt', 'r', encoding='utf-8') as file:
+with open('data/dutch_chunks.txt', 'r', encoding='utf-8') as file:
     lines = file.readlines()
 
 # Combine the lines into chunks of text separated by empty lines
@@ -244,86 +250,14 @@ unique_chunks = df['chunk'].unique().tolist()
 train_chunks, eval_chunks = train_test_split(unique_chunks, test_size=60, random_state=42)
 
 # Write the sentences corresponding to the selected chunks to the evaluation set
-with open('evaluation_set.txt', 'w', encoding='utf-8') as eval_file:
+with open('data/raw_evaluation_set.txt', 'w', encoding='utf-8') as eval_file:
     for chunk in eval_chunks:
         eval_file.write(chunk + '\n\n')
 
 # Write the sentences corresponding to the remaining chunks to the training set
-with open('training_set.txt', 'w', encoding='utf-8') as train_file:
+with open('data/training_set.txt', 'w', encoding='utf-8') as train_file:
     for chunk in train_chunks:
         train_file.write(chunk + '\n\n')
 
-print("Evaluation set and training set are created successfully!")
-
-#%% After manually annotation, annotate the same chunks using the model and look for discrepancy to assess
-# the need for fine-tuning (or not)
-
-# #%% ### CREATING DATAFRAME OF 50 OF EACH LABEL ### <---- 'LEGAL'????
-# from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
-# import pandas as pd
-# import random
-# import torch
-# from tqdm import tqdm
-# import re
-
-# # Load the annotation corpus
-# with open('Annotation_Corpus.txt', 'r', encoding='utf-8') as file:
-#     annotation_corpus = file.readlines()
-
-# # Preprocess the text
-# def preprocess_text(text):
-#     # Remove non-standard characters
-#     cleaned_text = re.sub(r'[^a-zA-ZÀ-ÿ\s\.\,\;\!\?\']', '', text)
-#     # Normalize text
-#     cleaned_text = cleaned_text.lower().strip()
-#     # Remove extra whitespace
-#     cleaned_text = re.sub(r'\s+', ' ', cleaned_text)
-#     return cleaned_text
-
-# # Apply preprocessing to each sentence in the corpus
-# cleaned_corpus = [preprocess_text(sentence) for sentence in annotation_corpus]
-
-# # Initialize the emotion classification pipeline
-# tokenizer = AutoTokenizer.from_pretrained("botdevringring/nl-naxai-ai-emotion-classification-101608122023", padding='max_length', max_length=512, truncation=True)
-# model = AutoModelForSequenceClassification.from_pretrained("botdevringring/nl-naxai-ai-emotion-classification-101608122023")
-# emotion_classifier = pipeline("text-classification", model=model, tokenizer=tokenizer)
-
-# # Specify the device (CPU or GPU)
-# device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-# model.to(device)
-
-# # Define the minimum length threshold for sentences
-# MIN_SENTENCE_LENGTH = 5
-
-# # Create an empty list to store dictionaries
-# results_list = []
-
-# # Iterate over each sentence in the preprocessed corpus and perform emotion classification
-# for sentence in tqdm(cleaned_corpus, desc="Processing sentences", unit=" sentence"):
-#     # Filter out very short sentences
-#     if len(sentence.split()) < MIN_SENTENCE_LENGTH:
-#         continue
-
-#     encoded_input = tokenizer(sentence, padding=True, truncation=True, return_tensors='pt')
-
-#     # Split the input into smaller chunks if it exceeds the maximum sequence length
-#     input_ids = encoded_input['input_ids'][0]
-#     chunk_size = 512
-#     for i in range(0, len(input_ids), chunk_size):
-#         chunk_input_ids = input_ids[i:i+chunk_size]
-#         chunk_text = tokenizer.decode(chunk_input_ids)
-
-#         result = emotion_classifier(chunk_text)
-#         label = result[0]['label']
-        
-#         # Append the sentence and its label as a dictionary to the list
-#         results_list.append({'sentence': chunk_text, 'label': label})
-
-# # Convert the list of dictionaries into a DataFrame
-# results_df = pd.DataFrame(results_list)
-
-# # Now `results_df` contains the sentences and their corresponding labels in a DataFrame
-# # You can further process or analyze this DataFrame as needed
-# print(results_df.head())
-
+print("Raw evaluation set and training set are created successfully!")
 
