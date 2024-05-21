@@ -6,20 +6,18 @@ Created on Fri Apr 26 10:27:53 2024
 """
 
 #%%
+
+### IMPORT LIBRARIES ###
+
 import spacy
 from spacy import displacy
 import pickle
-import os
 import pandas as pd
 from tqdm import tqdm
 from collections import Counter
 from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderTimedOut
 import time
-
-# Set the path to the root directory (speciale/code)
-root_directory = os.path.dirname(os.path.abspath(__file__))
-os.chdir(root_directory)
 
 def run_NER(params):
     
@@ -32,7 +30,7 @@ def run_NER(params):
     # Load Dutch language model with NER
     nlp = spacy.load("nl_core_news_lg")
 
-    # Define blacklist to store erroneous entities
+    # Define blacklist to exclude certain entities
     blacklist = params.get("blacklist", [])
 
     # Initialize Nominatim geocoder
@@ -40,14 +38,12 @@ def run_NER(params):
 
     # Initialize a counter for the entities
     entity_counter = Counter()
+    
     # Save the entity counts to a CSV file
     entity_counts_df = pd.DataFrame.from_dict(entity_counter, orient='index', columns=['count'])
     entity_counts_df.to_csv('data/entity_counts.csv')
 
-    # Initialize Nominatim geocoder
-    geolocator = Nominatim(user_agent="MyLocator")
-
-    # Function to perform NER and return entities after filtering through blacklist
+    # Function to perform NER and return entities, excluding those in the blacklist
     def extract_entities(text, letter_id):
         doc = nlp(text)
         entities = [(ent.text, ent.label_) for ent in doc.ents if ent.text.strip() not in blacklist]
@@ -75,9 +71,9 @@ def run_NER(params):
         return None
 
 
-    # Initialize an empty list to store displaCy markup data
-    displacy_data = []
-
+    # Initialize an empty dictionary to store displaCy markup data
+    displacy_data = {}
+    
     # Preprocess text and perform NER for each row
     print("Performing NER...")
     for index, row in tqdm(df.iterrows(), total=len(df), desc="Performing NER"):
@@ -87,10 +83,10 @@ def run_NER(params):
         # Update entity counter
         entity_counter.update(entities)
         
-        # Append displacy_markup to the list
-        displacy_data.append(displacy_markup)
-
-    # Save the displaCy markup dictionary to a single pickle file
+        # Store displacy_markup in the dictionary
+        displacy_data[letter_id] = displacy_markup
+    
+    # Save the displaCy markup dictionary to a pickle file
     output_file = 'data/displacy_data.pkl'
     with open(output_file, 'wb') as f:
         pickle.dump(displacy_data, f)
@@ -99,7 +95,7 @@ def run_NER(params):
     # Create DataFrame with geolocations
     locations_df = pd.DataFrame(columns=['letter', 'location_name', 'latitude', 'longitude'])
 
-    # Geocoding
+    # Perform geocoding for each row in the dataframe
     print("Geocoding...")
     for index, row in tqdm(df.iterrows(), total=len(df), desc="Geocoding"):
         text = row['text']
@@ -115,4 +111,4 @@ def run_NER(params):
                 }
 
     # Save DataFrame to CSV
-    locations_df.to_csv('data/geo_df.csv', sep=',', index=False, encoding='utf-8')
+    locations_df.to_csv('data/df_geo.csv', sep=',', index=False, encoding='utf-8')

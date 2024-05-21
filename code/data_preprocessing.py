@@ -4,20 +4,16 @@ Created on Thu Mar 21 22:08:51 2024
 
 @author: kimlu
 """
-
-#%%
-import os
-
-# Set the path to the root directory (speciale/code)
-root_directory = os.path.dirname(os.path.abspath(__file__))
-os.chdir(root_directory)
-
-#%%
 #######################
 ### EXTRACT LETTERS ###
 #######################
 import pandas as pd
 import re
+import os
+
+# Set the path to the root directory (speciale/code)
+root_directory = os.path.dirname(os.path.abspath(__file__))
+os.chdir(root_directory)
 
 ### Extracting/separating letters in word doc ###
 
@@ -86,11 +82,11 @@ def remove_date_from_text(text, date):
     # Replace the date with an empty string
     cleaned_text = re.sub(pattern, '', text)
     # Additional patterns to remove
-    cleaned_text = re.sub(r',\s*Zondagmiddag', '', cleaned_text)  # Remove ', Zondagmiddag' (case sensitive)
-    cleaned_text = re.sub(r'\d{1,2}\s+[A-Za-z]+\s+\d{4}', '', cleaned_text)  # Remove date in the format '12 juli 1942'
-    cleaned_text = re.sub(r'[A-Za-z]+day,\s*\d{1,2}\s+[A-Za-z]+\s+\d{4}', '', cleaned_text)  # Remove weekday, date
-    cleaned_text = re.sub(r'\s*\d{1,2}\s+[A-Za-z]+\s+\d{4}', '', cleaned_text)  # Remove date in the format ' 12 juli 1942'
-    cleaned_text = re.sub(r'-\s+(Mijn lief kindje!)', r'\1', cleaned_text)  # Remove the hyphen before 'Mijn lief kindje!'
+    cleaned_text = re.sub(r',\s*Zondagmiddag', '', cleaned_text) 
+    cleaned_text = re.sub(r'\d{1,2}\s+[A-Za-z]+\s+\d{4}', '', cleaned_text)  
+    cleaned_text = re.sub(r'[A-Za-z]+day,\s*\d{1,2}\s+[A-Za-z]+\s+\d{4}', '', cleaned_text) 
+    cleaned_text = re.sub(r'\s*\d{1,2}\s+[A-Za-z]+\s+\d{4}', '', cleaned_text)  
+    cleaned_text = re.sub(r'-\s+(Mijn lief kindje!)', r'\1', cleaned_text)  
     cleaned_text = re.sub(r',\s*barak\s*\d+', '', cleaned_text)
     cleaned_text = re.sub(r',\s*zondagochtend', '', cleaned_text)
     cleaned_text = re.sub(r'Zondagmiddag\s*', '', cleaned_text)
@@ -123,6 +119,20 @@ df['text'] = df.apply(lambda row: remove_date_from_text(row['text'], row['date']
 
 # Save the DataFrame as a CSV file
 df.to_csv('data/cleaned_df.csv', index=False)
+
+#%%
+import pandas as pd
+
+# Assuming your DataFrame is named df and loaded from a CSV file
+df = pd.read_csv('data/cleaned_df.csv')
+
+# Shorten the text in the 'text' column to around 14 words and add '...' at the end
+df['text'] = df['text'].apply(lambda x: ' '.join(x.split()[:14]) + '...' if len(x.split()) > 14 else x)
+
+# Convert DataFrame to LaTeX
+latex_table = df.head().to_latex(index=False)
+print(latex_table)
+
 
 #%% ### Create dataset of the last half of the worddoc ### 
     ### to be used for randomly extracting sentences   ### 
@@ -205,7 +215,7 @@ for chunk in tqdm(chunks, desc="Excluding German Sentences"):
     try:
         language = detect(chunk)
         if language != 'de' and not re.search(exclude_pattern, chunk, flags=re.IGNORECASE) and len(chunk.split()) >= 50:
-            dutch_chunks.add(chunk)  # Add unique Dutch chunk to set
+            dutch_chunks.add(chunk) 
     except Exception as e:
         # Handle any exceptions (e.g., short or ambiguous text)
         pass

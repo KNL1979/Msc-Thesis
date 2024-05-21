@@ -9,6 +9,7 @@ from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassifica
 import pandas as pd
 from tqdm import tqdm
 import json
+import random
 #%% CREATE DATAFRAME FOR EVALUATIONSET
 
 # Read the data from the CSV file (assuming it's in the same directory as your script)
@@ -22,6 +23,9 @@ df_eval['NL labels'] = ''
 
 #%% Sentiment analysis on df_eval to see if finetuning is benficial
 # Initialize emotion classification pipeline
+
+random.seed(42)
+
 tokenizer = AutoTokenizer.from_pretrained("botdevringring/nl-naxai-ai-emotion-classification-101608122023", padding='max_length', max_length=512, truncation=True)
 model = AutoModelForSequenceClassification.from_pretrained("botdevringring/nl-naxai-ai-emotion-classification-101608122023")
 emotion_classifier = pipeline("text-classification", model=model, tokenizer=tokenizer)
@@ -121,7 +125,7 @@ conf_matrix_nl = confusion_matrix(true_labels_nl, predicted_labels_nl)
 
 # Plot the confusion matrix for Danish (DK) labels
 plt.figure(figsize=(10, 8))
-sns.heatmap(conf_matrix_dk, annot=True, cmap='Blues', fmt='g', xticklabels=labels_dk, yticklabels=labels_dk)
+sns.heatmap(conf_matrix_dk, annot=True, cmap='YlOrBr', fmt='g', xticklabels=labels_dk, yticklabels=labels_dk)
 plt.xlabel('Predicted labels (DK)')
 plt.ylabel('True labels (DK)')
 plt.title('Confusion Matrix (DK)')
@@ -129,7 +133,7 @@ plt.show()
 
 # Plot the confusion matrix for English (EN) labels
 plt.figure(figsize=(10, 8))
-sns.heatmap(conf_matrix_en, annot=True, cmap='Blues', fmt='g', xticklabels=labels_en, yticklabels=labels_en)
+sns.heatmap(conf_matrix_en, annot=True, cmap='YlOrBr', fmt='g', xticklabels=labels_en, yticklabels=labels_en)
 plt.xlabel('Predicted labels (EN)')
 plt.ylabel('True labels (EN)')
 plt.title('Confusion Matrix (EN)')
@@ -137,11 +141,12 @@ plt.show()
 
 # Plot the confusion matrix for English (ENG) labels
 plt.figure(figsize=(10, 8))
-sns.heatmap(conf_matrix_nl, annot=True, cmap='Blues', fmt='g', xticklabels=labels_nl, yticklabels=labels_nl)
+sns.heatmap(conf_matrix_nl, annot=True, cmap='YlOrBr', fmt='g', xticklabels=labels_nl, yticklabels=labels_nl)
 plt.xlabel('Predicted labels (NL)')
 plt.ylabel('True labels (NL)')
 plt.title('Confusion Matrix (NL)')
 plt.show()
+
 #%% ADD COMBINED LABELS COLUMN TO FILTER LETTERS BY SENTIMENTS 
 
 df_sentiment = pd.read_csv('data/df_sentiment.csv')
